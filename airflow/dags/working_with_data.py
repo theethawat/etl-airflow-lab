@@ -2,7 +2,7 @@ from curses import echo
 import json
 import pathlib
 import datetime
-import os
+import logging
 
 import airflow
 import requests
@@ -36,7 +36,21 @@ def logging_some_data(ti):
     plain_booking_input = ti.xcom_pull(
         task_ids=["fetch_booking"])[0]
     plain_booking = json.loads(plain_booking_input)
-    print(str(plain_booking))
+    logging.debug(str(plain_booking))
+
+
+def process_booking(ti):
+    plain_booking_input = ti.xcom_pull(
+        task_ids=["fetch_booking"])[0]
+    plain_booking = json.loads(plain_booking_input)
+    if 'rows' not in plain_booking:
+        raise ValueError('Empty Booking')
+    booking_list = plain_booking['rows']
+    booking_status_list = []
+    for booking in booking_list:
+        booking_status_list.append(booking['status'])
+    logging.info('Booking Status List')
+    logging.info(booking_status_list)
 
 
 with DAG(
@@ -46,22 +60,6 @@ with DAG(
     tags=['database', 'query', 'display'],
     catchup=False,  # เราจะ Sync ให้ตรงกับ time ปัจจุบันมั้ย
 ) as dag:
-
-    # task_http_sensor_check = HttpSensor(
-    #     task_id='http_sensor_check',
-    #     http_conn_id='http_default',
-    #     endpoint='',
-    #     request_params={},
-    #     response_check=lambda response: "httpbin" in response.text,
-    #     poke_interval=5,
-    #     dag=dag,
-    # )
-
-    # is_api_available = HttpSensor(
-    #     task_id='is_api_available',
-    #     http_conn_id='user_api',
-    #     endpoint='api/'
-    # )
 
     fetch_booking = SimpleHttpOperator(
         task_id='fetch_booking',
@@ -80,4 +78,9 @@ with DAG(
         python_callable=logging_some_data
     )
 
-    fetch_booking >> echo_booking
+    booking_explainer = PythonOperator(
+        task_id="booking_explainer",
+        python_callable=process_booking
+    )
+
+    fetch_booking >> [echo_booking, booking_explainer]
