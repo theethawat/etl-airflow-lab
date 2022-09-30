@@ -98,8 +98,40 @@ services:
   #     retries: 50
   #   restart: always
 
+  airflow-commander:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:  
+      - -c
+      - |
+        echo "hello tin"
+        mkdir -p /opt/airflow/ 
+        curl https://fastdl.mongodb.org/tools/db/mongodb-database-tools-debian10-x86_64-100.6.0.deb --output /opt/airflow/mongotool.deb 
+        apt install -y /opt/airflow/mongotool.deb 
+        echo "Install mongo tool complete"
+        mongodump --help
+    user: "0:0"
+    # command: echo "you can use this command in terminal"
+   
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+
   airflow-webserver:
     <<: *airflow-common
+    # entrypoint: /bin/bash
+    # command:  
+    #   - -c
+    #   - |
+    #     echo "hello tin"
+    #     mkdir -p /opt/airflow/ 
+    #     curl https://fastdl.mongodb.org/tools/db/mongodb-database-tools-debian10-x86_64-100.6.0.deb --output /opt/airflow/mongotool.deb 
+    #     apt install -y /opt/airflow/mongotool.deb 
+    #     echo "Install mongo tool complete"
+    #     airflow webserver
+    # user: "0:0"
     command: webserver
     ports:
       - 8080:8080
@@ -109,6 +141,7 @@ services:
       timeout: 10s
       retries: 5
     restart: always
+   
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
