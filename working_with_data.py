@@ -1,13 +1,17 @@
+from curses import echo
 import json
 import pathlib
 import datetime
 import logging
 
 import airflow
-
+import requests
+import requests.exceptions as requests_exceptions
 from airflow import DAG
 from airflow.models import Variable
+from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.http.sensors.http import HttpSensor
 from airflow.providers.http.operators.http import SimpleHttpOperator
 
 import pandas as pd
@@ -77,27 +81,27 @@ def process_graph_generator():
     booking_status_eng_text = ['Booking', 'Confirmed', 'Checkedin',
                                'Checkout', 'Cancle', 'Wait', 'Success']
     status_amount = [0, 0, 0, 0, 0, 0, 0]
-    logging.info('Fetch Status List')
-    logging.info(fetched_status_list)
 
-    for booking_status in fetched_status_list:
+    for booking_staus in fetched_status_list:
         count = 0
         for status_text in booking_status_text:
-            #logging.info('Booking status' + booking_status)
-            #logging.info('Status text' + status_text)
-            if booking_status is status_text:
-                status_amount[count] = status_amount[count] + 1
+            if booking_staus == status_text:
+                status_amount[count] += 1
             count += 1
 
-    logging.info("Status Amount")
-    logging.info(status_amount)
+    # booking_amont_series = pd.Series(
+    #     data=status_amount, index=booking_status_text)
+    # all_booking_df = pd.DataFrame(booking_amont_series)
+    # logging.info('All Booking Dataframe')
+    # logging.info(all_booking_df)
     fig, ax = plt.subplots()
 
-    ax.bar(booking_status_eng_text, status_amount)
+    ax.bar(booking_status_eng_text, status_amount,
+           width=1, edgecolor="white", linewidth=0.7)
 
     image_name = 'booking'+format_date(last_5_day_date()
                                        )+'-to-'+format_date(next_5_day_date()) + '.png'
-
+    
     pathlib.Path("/tmp/images").mkdir(parents=True, exist_ok=True)
 
     target_file = f"/tmp/images/{image_name}"
